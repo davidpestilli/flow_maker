@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -10,7 +10,6 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MarkerType,
-  Position,
   ConnectionMode,
 } from "reactflow";
 import type { Edge, Node, Connection } from "reactflow";
@@ -20,27 +19,34 @@ import "reactflow/dist/style.css";
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
+// Definir nodeTypes fora do componente para evitar recriação
+const nodeTypes = {
+  custom: CustomNode,
+};
+
 const CriacaoCanvas = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { project } = useReactFlow();
 
-  // Memoizar nodeTypes para evitar recriação em cada renderização
-  const nodeTypes = useMemo(
-    () => ({
-      custom: CustomNode,
-    }),
-    []
-  );
-
   const onConnect = useCallback(
     (params: Edge | Connection) => {
-      // Adicionar edge com estilo personalizado
+      // INVERTER a direção para que seja intuitiva:
+      // Se você arrasta de B para A, a seta deve apontar de B para A
+      const correctedParams = {
+        ...params,
+        source: params.target,    // Inverter source
+        target: params.source,    // Inverter target
+        sourceHandle: params.targetHandle,  // Inverter handles também
+        targetHandle: params.sourceHandle,
+      };
+
+      // Adicionar edge com estilo personalizado e direção corrigida
       setEdges((eds) =>
         addEdge(
           {
-            ...params,
-            type: "smoothstep", // Tipo de linha suave
+            ...correctedParams,
+            type: 'smoothstep' as const, // Tipo de linha suave
             animated: true, // Adiciona animação à linha
             style: { stroke: '#374151', strokeWidth: 2 },
             markerEnd: {
@@ -70,8 +76,8 @@ const CriacaoCanvas = () => {
       });
 
       const newNode: Node = {
-        id: `${+new Date()}`,
-        type: "custom",
+        id: `node-${+new Date()}`,
+        type: "custom", // Usando o tipo custom
         position,
         data: { label: type },
       };
@@ -96,12 +102,18 @@ const CriacaoCanvas = () => {
         onConnect={onConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        nodeTypes={nodeTypes} // IMPORTANTE: Registrar os nodeTypes
         connectionMode={ConnectionMode.Loose}
+        connectOnClick={false}
+        elementsSelectable={true}
+        nodesDraggable={true}
+        nodesConnectable={true}
+        edgesUpdatable={true}
         snapToGrid={true}
         snapGrid={[15, 15]}
         defaultEdgeOptions={{
           animated: true,
-          type: 'smoothstep',
+          type: 'smoothstep' as const,
         }}
         fitView
       >
@@ -115,6 +127,7 @@ const CriacaoCanvas = () => {
             }
           }}
         />
+        <Controls />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
     </div>
