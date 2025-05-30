@@ -117,16 +117,17 @@ const CriacaoCanvas = () => {
         }}
         fitView
       >
-        <MiniMap 
-          nodeColor={(node) => {
-            switch (node.data.label) {
-              case 'rectangle': return '#3b82f6';
-              case 'ellipse': return '#10b981';
-              case 'diamond': return '#f59e0b';
-              default: return '#6b7280';
-            }
-          }}
-        />
+      <MiniMap 
+        nodeColor={(node) => {
+          switch (node.data.label) {
+            case 'rectangle': return '#3b82f6'; // azul
+            case 'ellipse': return '#10b981';   // verde
+            case 'circle': return '#6366f1';    // roxo
+            case 'triangle': return '#f59e0b';  // laranja
+            default: return '#6b7280';          // cinza
+          }
+        }}
+      />
         <Controls />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>

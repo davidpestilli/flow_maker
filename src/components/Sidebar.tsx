@@ -9,6 +9,7 @@ const Sidebar = () => {
   return (
     <aside className="w-40 bg-gray-100 p-3 border-r border-gray-300 h-full">
       <p className="font-semibold mb-2">Shapes</p>
+
       <div
         className="p-2 bg-white border rounded mb-2 cursor-move text-center"
         onDragStart={(e) => onDragStart(e, "rectangle")}
@@ -16,6 +17,7 @@ const Sidebar = () => {
       >
         Retângulo
       </div>
+
       <div
         className="p-2 bg-white border rounded mb-2 cursor-move text-center"
         onDragStart={(e) => onDragStart(e, "ellipse")}
@@ -23,12 +25,21 @@ const Sidebar = () => {
       >
         Elipse
       </div>
+
       <div
         className="p-2 bg-white border rounded mb-2 cursor-move text-center"
-        onDragStart={(e) => onDragStart(e, "diamond")}
+        onDragStart={(e) => onDragStart(e, "circle")}
         draggable
       >
-        Diamante
+        Círculo
+      </div>
+
+      <div
+        className="p-2 bg-white border rounded mb-2 cursor-move text-center"
+        onDragStart={(e) => onDragStart(e, "triangle")}
+        draggable
+      >
+        Triângulo
       </div>
     </aside>
   );

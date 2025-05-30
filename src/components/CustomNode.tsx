@@ -2,78 +2,87 @@ import { Handle, Position } from "reactflow";
 import type { NodeProps } from "reactflow";
 
 const CustomNode = ({ data }: NodeProps) => {
-  // Determinamos o tipo de shape para aplicar estilos diferentes
-  const getShapeClass = () => {
-    switch (data.label) {
-      case 'ellipse':
-        return 'rounded-full px-8 py-6';
-      case 'diamond':
-        return 'transform rotate-45 w-20 h-20 flex items-center justify-center';
+  const label = data.label;
+
+  const renderShape = () => {
+    switch (label) {
+      case "circle":
+        return (
+          <div className="w-24 h-24 rounded-full bg-white border-2 border-gray-400 flex items-center justify-center text-sm shadow-md">
+            {label}
+          </div>
+        );
+
+      case "ellipse":
+        return (
+          <div className="px-8 py-5 rounded-full bg-white border-2 border-gray-400 text-sm shadow-md">
+            {label}
+          </div>
+        );
+
+      case "rectangle":
+        return (
+          <div className="px-6 py-4 rounded-md bg-white border-2 border-gray-400 text-sm shadow-md">
+            {label}
+          </div>
+        );
+
+case "triangle":
+  return (
+    <div className="w-[120px] h-[100px] relative">
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <polygon
+          points="50,0 100,100 0,100"
+          fill="white"
+          stroke="#9ca3af"
+          strokeWidth="2"
+        />
+      </svg>
+      <div className="absolute top-[58%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-sm">
+        {label}
+      </div>
+    </div>
+  );
+
       default:
-        return 'rounded-md px-4 py-6';
+        return (
+          <div className="px-4 py-4 rounded-md bg-white border-2 border-gray-400 text-sm shadow-md">
+            {label || "Shape"}
+          </div>
+        );
     }
   };
 
-  const contentClass = data.label === 'diamond' ? 'transform -rotate-45 text-xs' : '';
+  // Renders the 4 handles around the shape
+  const renderHandles = () => {
+    return (
+      <>
+        {["Top", "Right", "Bottom", "Left"].map((pos) => (
+          <>
+            <Handle
+              key={`source-${pos}`}
+              type="source"
+              position={Position[pos as keyof typeof Position]}
+              id={pos.toLowerCase()}
+              className={`!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-${pos.toLowerCase()}-1.5`}
+            />
+            <Handle
+              key={`target-${pos}`}
+              type="target"
+              position={Position[pos as keyof typeof Position]}
+              id={pos.toLowerCase()}
+              className={`!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-${pos.toLowerCase()}-1.5`}
+            />
+          </>
+        ))}
+      </>
+    );
+  };
 
   return (
-    <div className={`relative bg-white border-2 border-gray-400 text-sm text-center shadow-md min-w-[120px] hover:shadow-lg transition-shadow ${getShapeClass()}`}>
-      <div className={`font-medium ${contentClass}`}>
-        {data.label || "Shape"}
-      </div>
-
-      {/* Handles que funcionam tanto como SOURCE quanto TARGET */}
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-top-1.5"
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-top-1.5"
-      />
-      
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-right-1.5"
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-right-1.5"
-      />
-      
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-bottom-1.5"
-      />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-bottom-1.5"
-      />
-      
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-left-1.5"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white hover:!bg-blue-600 !-left-1.5"
-      />
+    <div className="relative flex items-center justify-center">
+      {renderShape()}
+      {renderHandles()}
     </div>
   );
 };
