@@ -7,6 +7,18 @@ const CustomNode = ({ data, selected }: NodeProps) => {
   const text = data.text || data.label;
   const backgroundColor = data.backgroundColor || 'white';
   const borderColor = data.borderColor || '#9ca3af';
+  const isBold = data.isBold || false;
+  const isItalic = data.isItalic || false;
+  const isStrikethrough = data.isStrikethrough || false;
+
+  // Função para gerar o estilo do texto
+  const getTextStyle = () => {
+    return {
+      fontWeight: isBold ? 'bold' : 'normal',
+      fontStyle: isItalic ? 'italic' : 'normal',
+      textDecoration: isStrikethrough ? 'underline' : 'none',
+    };
+  };
 
   const renderShape = () => {
     // Adiciona borda azul quando selecionado
@@ -21,7 +33,10 @@ const CustomNode = ({ data, selected }: NodeProps) => {
             className={`w-24 h-24 rounded-full border-2 flex items-center justify-center text-sm shadow-md cursor-pointer transition-all duration-200 ${selectedClass}`}
             style={{ ...borderStyle, ...backgroundStyle }}
           >
-            <span className="text-sm text-black select-none text-center px-2">
+            <span 
+              className="text-sm text-black select-none text-center px-2"
+              style={getTextStyle()}
+            >
               {text}
             </span>
           </div>
@@ -33,7 +48,10 @@ const CustomNode = ({ data, selected }: NodeProps) => {
             className={`px-8 py-5 rounded-full border-2 text-sm shadow-md cursor-pointer transition-all duration-200 flex items-center justify-center ${selectedClass}`}
             style={{ ...borderStyle, ...backgroundStyle }}
           >
-            <span className="text-sm text-black select-none text-center">
+            <span 
+              className="text-sm text-black select-none text-center"
+              style={getTextStyle()}
+            >
               {text}
             </span>
           </div>
@@ -45,7 +63,10 @@ const CustomNode = ({ data, selected }: NodeProps) => {
             className={`px-6 py-4 rounded-md border-2 text-sm shadow-md cursor-pointer transition-all duration-200 flex items-center justify-center ${selectedClass}`}
             style={{ ...borderStyle, ...backgroundStyle }}
           >
-            <span className="text-sm text-black select-none text-center">
+            <span 
+              className="text-sm text-black select-none text-center"
+              style={getTextStyle()}
+            >
               {text}
             </span>
           </div>
@@ -65,7 +86,10 @@ const CustomNode = ({ data, selected }: NodeProps) => {
               />
             </svg>
             <div className="absolute top-[58%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-sm cursor-pointer pointer-events-none">
-              <span className="text-sm text-black select-none text-center">
+              <span 
+                className="text-sm text-black select-none text-center"
+                style={getTextStyle()}
+              >
                 {text}
               </span>
             </div>
@@ -78,7 +102,10 @@ const CustomNode = ({ data, selected }: NodeProps) => {
             className={`px-4 py-4 rounded-md border-2 text-sm shadow-md cursor-pointer transition-all duration-200 flex items-center justify-center ${selectedClass}`}
             style={{ ...borderStyle, ...backgroundStyle }}
           >
-            <span className="text-sm text-black select-none text-center">
+            <span 
+              className="text-sm text-black select-none text-center"
+              style={getTextStyle()}
+            >
               {text}
             </span>
           </div>

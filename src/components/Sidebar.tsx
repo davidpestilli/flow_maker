@@ -10,6 +10,9 @@ const Sidebar = ({ selectedNode, onUpdateNode }: SidebarProps) => {
   const [nodeText, setNodeText] = useState("");
   const [backgroundColor, setBackgroundColor] = useState("#ffffff");
   const [borderColor, setBorderColor] = useState("#9ca3af");
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isStrikethrough, setIsStrikethrough] = useState(false);
 
   // Atualiza os valores quando um novo nó é selecionado
   useEffect(() => {
@@ -17,6 +20,9 @@ const Sidebar = ({ selectedNode, onUpdateNode }: SidebarProps) => {
       setNodeText(selectedNode.data.text || selectedNode.data.label || "");
       setBackgroundColor(selectedNode.data.backgroundColor || "#ffffff");
       setBorderColor(selectedNode.data.borderColor || "#9ca3af");
+      setIsBold(selectedNode.data.isBold || false);
+      setIsItalic(selectedNode.data.isItalic || false);
+      setIsStrikethrough(selectedNode.data.isStrikethrough || false);
     }
   }, [selectedNode]);
 
@@ -49,6 +55,33 @@ const Sidebar = ({ selectedNode, onUpdateNode }: SidebarProps) => {
     if (selectedNode) {
       console.log('Sidebar: Calling onUpdateNode with borderColor:', newColor); // Debug
       onUpdateNode(selectedNode.id, { borderColor: newColor });
+    }
+  };
+
+  const handleBoldToggle = () => {
+    const newBold = !isBold;
+    setIsBold(newBold);
+    if (selectedNode) {
+      console.log('Sidebar: Calling onUpdateNode with isBold:', newBold); // Debug
+      onUpdateNode(selectedNode.id, { isBold: newBold });
+    }
+  };
+
+  const handleItalicToggle = () => {
+    const newItalic = !isItalic;
+    setIsItalic(newItalic);
+    if (selectedNode) {
+      console.log('Sidebar: Calling onUpdateNode with isItalic:', newItalic); // Debug
+      onUpdateNode(selectedNode.id, { isItalic: newItalic });
+    }
+  };
+
+  const handleStrikethroughToggle = () => {
+    const newStrikethrough = !isStrikethrough;
+    setIsStrikethrough(newStrikethrough);
+    if (selectedNode) {
+      console.log('Sidebar: Calling onUpdateNode with isStrikethrough:', newStrikethrough); // Debug
+      onUpdateNode(selectedNode.id, { isStrikethrough: newStrikethrough });
     }
   };
 
@@ -127,6 +160,48 @@ const Sidebar = ({ selectedNode, onUpdateNode }: SidebarProps) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Digite o texto..."
               />
+            </div>
+
+            {/* Formatação de Texto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Formatação
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleBoldToggle}
+                  className={`px-3 py-2 text-sm font-bold border rounded transition-colors ${
+                    isBold 
+                      ? 'bg-blue-500 text-white border-blue-500' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Negrito"
+                >
+                  <strong>B</strong>
+                </button>
+                <button
+                  onClick={handleItalicToggle}
+                  className={`px-3 py-2 text-sm italic border rounded transition-colors ${
+                    isItalic 
+                      ? 'bg-blue-500 text-white border-blue-500' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Itálico"
+                >
+                  <em>I</em>
+                </button>
+                <button
+                  onClick={handleStrikethroughToggle}
+                  className={`px-3 py-2 text-sm border rounded transition-colors ${
+                    isStrikethrough 
+                      ? 'bg-blue-500 text-white border-blue-500' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Sublinhado"
+                >
+                  <span style={{ textDecoration: 'underline' }}>U</span>
+                </button>
+              </div>
             </div>
 
             {/* Cor de Fundo */}
