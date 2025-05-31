@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -12,7 +12,7 @@ import ReactFlow, {
   MarkerType,
   ConnectionMode,
 } from "reactflow";
-import type { Edge, Node, Connection } from "reactflow";
+import type { Edge, Node, Connection, NodeChange } from "reactflow";
 import CustomNode from "../components/CustomNode";
 import "reactflow/dist/style.css";
 
@@ -24,10 +24,27 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
-const CriacaoCanvas = () => {
+interface CriacaoCanvasProps {
+  selectedNode: Node | null;
+  onNodeSelect: (node: Node | null) => void;
+  setUpdateNodeFunc: (func: (nodeId: string, updates: any) => void) => void;
+}
+
+const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: CriacaoCanvasProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { project } = useReactFlow();
+
+  // Atualiza o selectedNode quando os nodes mudam
+  useEffect(() => {
+    if (selectedNode) {
+      const updatedNode = nodes.find(n => n.id === selectedNode.id);
+      if (updatedNode && JSON.stringify(updatedNode.data) !== JSON.stringify(selectedNode.data)) {
+        console.log('Syncing selected node with updated data'); // Debug
+        onNodeSelect(updatedNode);
+      }
+    }
+  }, [nodes, selectedNode, onNodeSelect]);
 
   const onConnect = useCallback(
     (params: Edge | Connection) => {
@@ -77,11 +94,13 @@ const CriacaoCanvas = () => {
 
       const newNode: Node = {
         id: `node-${+new Date()}`,
-        type: "custom", // Usando o tipo custom
+        type: "custom", // IMPORTANTE: usar o tipo custom
         position,
         data: { 
           label: type,
-          text: type // Texto inicial igual ao tipo
+          text: type, // Texto inicial igual ao tipo
+          backgroundColor: "#ffffff",
+          borderColor: "#9ca3af"
         },
       };
 
@@ -95,16 +114,72 @@ const CriacaoCanvas = () => {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  // Função que realmente atualiza os nodes no canvas
+  const handleUpdateNode = useCallback((nodeId: string, updates: any) => {
+    console.log('CriacaoCanvas: Updating node', nodeId, 'with:', updates); // Debug
+    
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          const updatedNode = { ...node, data: { ...node.data, ...updates } };
+          console.log('CriacaoCanvas: Node updated:', updatedNode); // Debug
+          return updatedNode;
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  // Registra a função de atualização no App
+  useEffect(() => {
+    setUpdateNodeFunc(handleUpdateNode);
+  }, [handleUpdateNode, setUpdateNodeFunc]);
+
+  // Detecta seleção através do clique no nó
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.stopPropagation();
+    console.log('Node clicked:', node); // Debug
+    onNodeSelect(node);
+  }, [onNodeSelect]);
+
+  // Captura mudanças nos nós incluindo seleção
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChange(changes);
+    
+    // Verifica se houve mudança de seleção usando useEffect será melhor
+    const selectionChange = changes.find(change => change.type === 'select');
+    if (selectionChange) {
+      if (selectionChange.selected) {
+        // Busca o nó nos nodes atuais
+        const selectedNode = nodes.find(n => n.id === selectionChange.id);
+        if (selectedNode) {
+          console.log('Node selected:', selectedNode); // Debug
+          onNodeSelect(selectedNode);
+        }
+      } else {
+        console.log('Node deselected'); // Debug
+        onNodeSelect(null);
+      }
+    }
+  }, [onNodesChange, nodes, onNodeSelect]);
+
+  // Captura cliques no pano de fundo para desselecionar
+  const handlePaneClick = useCallback(() => {
+    onNodeSelect(null);
+  }, [onNodeSelect]);
+
   return (
     <div className="flex-1 h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onPaneClick={handlePaneClick}
+        onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes} // IMPORTANTE: Registrar os nodeTypes
         connectionMode={ConnectionMode.Loose}
         connectOnClick={false}
@@ -125,6 +200,11 @@ const CriacaoCanvas = () => {
       >
         <MiniMap 
           nodeColor={(node) => {
+            // Usa a cor de fundo do nó se disponível
+            if (node.data.backgroundColor) {
+              return node.data.backgroundColor;
+            }
+            // Cores padrão por tipo
             switch (node.data.label) {
               case 'rectangle': return '#3b82f6'; // azul
               case 'ellipse': return '#10b981';   // verde
@@ -152,22 +232,28 @@ const CriacaoCanvas = () => {
         <h3 className="font-semibold text-sm mb-2">Como usar:</h3>
         <ul className="text-xs text-gray-600 space-y-1">
           <li>• Arraste formas da barra lateral</li>
-          <li>• Clique para selecionar</li>
-          <li>• Duplo clique para editar texto</li>
+          <li>• Clique para selecionar e editar</li>
           <li>• Arraste entre pontos azuis para conectar</li>
           <li>• Delete para remover selecionados</li>
+          <li>• Use o painel lateral para personalizar</li>
         </ul>
       </div>
     </div>
   );
 };
 
-const Criacao = () => (
-  <div className="flex-1 h-full">
-    <ReactFlowProvider>
-      <CriacaoCanvas />
-    </ReactFlowProvider>
-  </div>
-);
+const Criacao = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: CriacaoCanvasProps) => {
+  return (
+    <div className="flex-1 h-full">
+      <ReactFlowProvider>
+        <CriacaoCanvas 
+          selectedNode={selectedNode}
+          onNodeSelect={onNodeSelect}
+          setUpdateNodeFunc={setUpdateNodeFunc}
+        />
+      </ReactFlowProvider>
+    </div>
+  );
+};
 
 export default Criacao;
