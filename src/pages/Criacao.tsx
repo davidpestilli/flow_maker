@@ -51,7 +51,7 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
       // INVERTER a direção para que seja intuitiva:
       // Se você arrasta de B para A, a seta deve apontar de B para A
       const correctedParams = {
-        ...params,
+        ...(typeof params === 'object' ? params : {}),
         source: params.target,    // Inverter source
         target: params.source,    // Inverter target
         sourceHandle: params.targetHandle,  // Inverter handles também
@@ -65,13 +65,19 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
             ...correctedParams,
             type: 'smoothstep' as const, // Tipo de linha suave
             animated: true, // Adiciona animação à linha
-            style: { stroke: '#374151', strokeWidth: 2 },
+            style: { 
+              stroke: '#374151', 
+              strokeWidth: 2,
+              cursor: 'pointer' // Indica que é clicável
+            },
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 20,
               height: 20,
               color: '#374151',
             },
+            // Adiciona ID único para facilitar seleção
+            id: `edge-${+new Date()}`,
           },
           eds
         )
@@ -140,7 +146,24 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
     event.stopPropagation();
     console.log('Node clicked:', node); // Debug
     onNodeSelect(node);
-  }, [onNodeSelect]);
+    
+    // Desseleciona todos os edges quando um nó é selecionado
+    setEdges((eds) =>
+      eds.map((edge) => ({
+        ...edge,
+        selected: false,
+        style: {
+          ...edge.style,
+          stroke: '#374151',
+          strokeWidth: 2,
+        },
+        markerEnd: edge.markerEnd && typeof edge.markerEnd === 'object' ? {
+          ...(edge.markerEnd as any),
+          color: '#374151',
+        } : edge.markerEnd,
+      }))
+    );
+  }, [onNodeSelect, setEdges]);
 
   // Captura mudanças nos nós incluindo seleção
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
@@ -163,10 +186,53 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
     }
   }, [onNodesChange, nodes, onNodeSelect]);
 
+  // Handler para cliques em edges
+  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.stopPropagation();
+    console.log('Edge clicked:', edge); // Debug
+    
+    // Atualiza o estado dos edges para marcar como selecionado
+    setEdges((eds) =>
+      eds.map((e) => ({
+        ...e,
+        selected: e.id === edge.id, // Apenas o edge clicado fica selecionado
+        style: {
+          ...e.style,
+          stroke: e.id === edge.id ? '#3b82f6' : '#374151',
+          strokeWidth: e.id === edge.id ? 4 : 2,
+        },
+        markerEnd: e.markerEnd && typeof e.markerEnd === 'object' ? {
+          ...(e.markerEnd as any),
+          color: e.id === edge.id ? '#3b82f6' : '#374151',
+        } : e.markerEnd,
+      }))
+    );
+
+    // Desseleciona qualquer nó selecionado
+    onNodeSelect(null);
+  }, [setEdges, onNodeSelect]);
+
   // Captura cliques no pano de fundo para desselecionar
   const handlePaneClick = useCallback(() => {
     onNodeSelect(null);
-  }, [onNodeSelect]);
+    
+    // Desseleciona todos os edges também
+    setEdges((eds) =>
+      eds.map((edge) => ({
+        ...edge,
+        selected: false,
+        style: {
+          ...edge.style,
+          stroke: '#374151',
+          strokeWidth: 2,
+        },
+        markerEnd: edge.markerEnd && typeof edge.markerEnd === 'object' ? {
+          ...(edge.markerEnd as any),
+          color: '#374151',
+        } : edge.markerEnd,
+      }))
+    );
+  }, [onNodeSelect, setEdges]);
 
   return (
     <div className="flex-1 h-full">
@@ -180,6 +246,7 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
         onDragOver={onDragOver}
         onPaneClick={handlePaneClick}
         onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick} // Adiciona handler para cliques em edges
         nodeTypes={nodeTypes} // IMPORTANTE: Registrar os nodeTypes
         connectionMode={ConnectionMode.Loose}
         connectOnClick={false}
@@ -192,6 +259,7 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
         defaultEdgeOptions={{
           animated: true,
           type: 'smoothstep' as const,
+          style: { cursor: 'pointer' }, // Mostra que edges são clicáveis
         }}
         selectNodesOnDrag={false} // Evita seleção acidental ao arrastar
         multiSelectionKeyCode="Shift" // Permite seleção múltipla com Shift
@@ -232,7 +300,8 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
         <h3 className="font-semibold text-sm mb-2">Como usar:</h3>
         <ul className="text-xs text-gray-600 space-y-1">
           <li>• Arraste formas da barra lateral</li>
-          <li>• Clique para selecionar e editar</li>
+          <li>• Clique para selecionar e editar nós</li>
+          <li>• Clique nas conexões para selecioná-las</li>
           <li>• Arraste entre pontos azuis para conectar</li>
           <li>• Delete para remover selecionados</li>
           <li>• Use o painel lateral para personalizar</li>
