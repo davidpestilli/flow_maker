@@ -135,17 +135,47 @@ const CriacaoCanvas = ({
         y: event.clientY - bounds.top,
       });
 
+      // Dados iniciais completos para compatibilidade com o novo editor
+      const newNodeData = { 
+        // Propriedades básicas (originais)
+        label: type,
+        text: type, // Texto inicial igual ao tipo
+        backgroundColor: "#ffffff",
+        borderColor: "#9ca3af",
+        
+        // Propriedades de texto com valores padrão
+        textColor: "#000000",
+        fontSize: 14,
+        fontFamily: "Inter",
+        textAlign: "center",
+        isBold: false,
+        isItalic: false,
+        isStrikethrough: false,
+        
+        // Propriedades de layout com valores padrão
+        nodeWidth: "auto",
+        nodeHeight: "auto",
+        padding: 16,
+        borderWidth: 2,
+        borderRadius: 8,
+        
+        // Propriedades de efeitos com valores padrão
+        hasShadow: true,
+        shadowOpacity: 0.1,
+        nodeOpacity: 1,
+        
+        // Propriedades de ícones
+        selectedIcon: "",
+      };
+
       const newNode: Node = {
         id: `node-${+new Date()}`,
         type: "custom", // IMPORTANTE: usar o tipo custom
         position,
-        data: { 
-          label: type,
-          text: type, // Texto inicial igual ao tipo
-          backgroundColor: "#ffffff",
-          borderColor: "#9ca3af"
-        },
+        data: newNodeData,
       };
+
+      console.log('Creating new node with data:', newNodeData); // DEBUG
 
       setNodes((nds) => nds.concat(newNode));
     },
@@ -165,7 +195,7 @@ const CriacaoCanvas = ({
       nds.map((node) => {
         if (node.id === nodeId) {
           const updatedNode = { ...node, data: { ...node.data, ...updates } };
-          console.log('CriacaoCanvas: Node updated:', updatedNode); // Debug
+          console.log('CriacaoCanvas: Node updated - Full data:', updatedNode.data); // DEBUG
           return updatedNode;
         }
         return node;
@@ -236,6 +266,7 @@ const CriacaoCanvas = ({
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     event.stopPropagation();
     console.log('Node clicked:', node); // Debug
+    console.log('Node data on click:', node.data); // DEBUG EXTRA
     onNodeSelect(node);
     onEdgeSelect(null); // Desseleciona edge
     
@@ -274,7 +305,7 @@ const CriacaoCanvas = ({
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     
-    // Verifica se houve mudança de seleção usando useEffect será melhor
+    // Verifica se houve mudança de seleção
     const selectionChange = changes.find(change => change.type === 'select');
     if (selectionChange) {
       if (selectionChange.selected) {
@@ -398,13 +429,14 @@ const CriacaoCanvas = ({
         deleteKeyCode="Delete" // Permite deletar com Delete
         fitView
       >
+        {/* MiniMap com suporte às novas propriedades de cor */}
         <MiniMap 
           nodeColor={(node) => {
-            // Usa a cor de fundo do nó se disponível
+            // Usa a cor de fundo do nó se disponível (nova funcionalidade)
             if (node.data.backgroundColor) {
               return node.data.backgroundColor;
             }
-            // Cores padrão por tipo
+            // Cores padrão por tipo (mantidas para compatibilidade)
             switch (node.data.label) {
               case 'rectangle': return '#3b82f6'; // azul
               case 'ellipse': return '#10b981';   // verde
@@ -427,22 +459,30 @@ const CriacaoCanvas = ({
         />
       </ReactFlow>
       
-      {/* Instruções para o usuário */}
+      {/* Instruções melhoradas para o usuário */}
       <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-md border max-w-xs">
-        <h3 className="font-semibold text-sm mb-2">Como usar:</h3>
+        <h3 className="font-semibold text-sm mb-2 text-gray-800">🎨 Como usar:</h3>
         <ul className="text-xs text-gray-600 space-y-1">
-          <li>• Arraste formas da barra lateral</li>
-          <li>• Clique para selecionar e editar nós</li>
-          <li>• Clique nas conexões para selecioná-las</li>
-          <li>• Arraste entre pontos azuis para conectar</li>
-          <li>• Delete para remover selecionados</li>
-          <li>• Use o painel lateral para personalizar</li>
+          <li>• <strong>Arraste</strong> formas da barra lateral</li>
+          <li>• <strong>Clique</strong> para selecionar e editar nós</li>
+          <li>• <strong>Clique</strong> nas conexões para editá-las</li>
+          <li>• <strong>Arraste</strong> entre pontos azuis para conectar</li>
+          <li>• <strong>Delete</strong> para remover selecionados</li>
+          <li>• <strong>Use as abas</strong> no painel para personalizar</li>
+          <li>• <strong>Templates</strong> rápidos na aba Estilo</li>
+          <li>• <strong>Shift+Click</strong> para seleção múltipla</li>
         </ul>
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            💡 <strong>Dica:</strong> Use os templates para começar rapidamente!
+          </p>
+        </div>
       </div>
     </div>
   );
 };
 
+// Componente principal exportado (mantido igual)
 const Criacao = ({ 
   selectedNode, 
   selectedEdge, 
