@@ -79,7 +79,10 @@ const CriacaoCanvas = () => {
         id: `node-${+new Date()}`,
         type: "custom", // Usando o tipo custom
         position,
-        data: { label: type },
+        data: { 
+          label: type,
+          text: type // Texto inicial igual ao tipo
+        },
       };
 
       setNodes((nds) => nds.concat(newNode));
@@ -115,22 +118,46 @@ const CriacaoCanvas = () => {
           animated: true,
           type: 'smoothstep' as const,
         }}
+        selectNodesOnDrag={false} // Evita seleção acidental ao arrastar
+        multiSelectionKeyCode="Shift" // Permite seleção múltipla com Shift
+        deleteKeyCode="Delete" // Permite deletar com Delete
         fitView
       >
-      <MiniMap 
-        nodeColor={(node) => {
-          switch (node.data.label) {
-            case 'rectangle': return '#3b82f6'; // azul
-            case 'ellipse': return '#10b981';   // verde
-            case 'circle': return '#6366f1';    // roxo
-            case 'triangle': return '#f59e0b';  // laranja
-            default: return '#6b7280';          // cinza
-          }
-        }}
-      />
-        <Controls />
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        <MiniMap 
+          nodeColor={(node) => {
+            switch (node.data.label) {
+              case 'rectangle': return '#3b82f6'; // azul
+              case 'ellipse': return '#10b981';   // verde
+              case 'circle': return '#6366f1';    // roxo
+              case 'triangle': return '#f59e0b';  // laranja
+              default: return '#6b7280';          // cinza
+            }
+          }}
+          nodeStrokeWidth={3}
+          maskColor="rgb(240, 240, 240, 0.6)"
+        />
+        <Controls 
+          showInteractive={false} // Remove o botão de interação
+        />
+        <Background 
+          variant={BackgroundVariant.Dots} 
+          gap={12} 
+          size={1} 
+          color="#e5e7eb"
+        />
       </ReactFlow>
+      
+      {/* Instruções para o usuário */}
+      <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-md border max-w-xs">
+        <h3 className="font-semibold text-sm mb-2">Como usar:</h3>
+        <ul className="text-xs text-gray-600 space-y-1">
+          <li>• Arraste formas da barra lateral</li>
+          <li>• Clique para selecionar</li>
+          <li>• Duplo clique para editar texto</li>
+          <li>• Arraste entre pontos azuis para conectar</li>
+          <li>• Delete para remover selecionados</li>
+        </ul>
+      </div>
     </div>
   );
 };
