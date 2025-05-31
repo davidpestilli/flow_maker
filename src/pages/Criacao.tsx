@@ -26,11 +26,21 @@ const nodeTypes = {
 
 interface CriacaoCanvasProps {
   selectedNode: Node | null;
+  selectedEdge: Edge | null;
   onNodeSelect: (node: Node | null) => void;
+  onEdgeSelect: (edge: Edge | null) => void;
   setUpdateNodeFunc: (func: (nodeId: string, updates: any) => void) => void;
+  setUpdateEdgeFunc: (func: (edgeId: string, updates: any) => void) => void;
 }
 
-const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: CriacaoCanvasProps) => {
+const CriacaoCanvas = ({ 
+  selectedNode, 
+  selectedEdge, 
+  onNodeSelect, 
+  onEdgeSelect, 
+  setUpdateNodeFunc, 
+  setUpdateEdgeFunc 
+}: CriacaoCanvasProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { project } = useReactFlow();
@@ -46,12 +56,23 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
     }
   }, [nodes, selectedNode, onNodeSelect]);
 
+  // Atualiza o selectedEdge quando os edges mudam
+  useEffect(() => {
+    if (selectedEdge) {
+      const updatedEdge = edges.find(e => e.id === selectedEdge.id);
+      if (updatedEdge && JSON.stringify(updatedEdge) !== JSON.stringify(selectedEdge)) {
+        console.log('Syncing selected edge with updated data'); // Debug
+        onEdgeSelect(updatedEdge);
+      }
+    }
+  }, [edges, selectedEdge, onEdgeSelect]);
+
   const onConnect = useCallback(
     (params: Edge | Connection) => {
       // INVERTER a direção para que seja intuitiva:
       // Se você arrasta de B para A, a seta deve apontar de B para A
       const correctedParams = {
-        ...(typeof params === 'object' ? params : {}),
+        ...params,
         source: params.target,    // Inverter source
         target: params.source,    // Inverter target
         sourceHandle: params.targetHandle,  // Inverter handles também
@@ -78,6 +99,11 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
             },
             // Adiciona ID único para facilitar seleção
             id: `edge-${+new Date()}`,
+            // Armazena as cores originais como dados do edge
+            data: {
+              originalStroke: '#374151',
+              originalStrokeWidth: 2,
+            }
           },
           eds
         )
@@ -136,34 +162,70 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
     );
   }, [setNodes]);
 
-  // Registra a função de atualização no App
+  // Função que realmente atualiza os edges no canvas
+  const handleUpdateEdge = useCallback((edgeId: string, updates: any) => {
+    console.log('CriacaoCanvas: Updating edge', edgeId, 'with:', updates); // Debug
+    
+    setEdges((eds) =>
+      eds.map((edge) => {
+        if (edge.id === edgeId) {
+          const updatedEdge = { 
+            ...edge, 
+            ...updates,
+            style: edge.style ? { ...edge.style, ...updates.style } : updates.style,
+            markerEnd: updates.markerEnd ? 
+              (edge.markerEnd && typeof edge.markerEnd === 'object' && typeof updates.markerEnd === 'object' ? 
+                { ...edge.markerEnd, ...updates.markerEnd } : 
+                updates.markerEnd) 
+              : edge.markerEnd,
+            // Armazena as cores originais como dados do edge
+            data: {
+              ...edge.data,
+              originalStroke: updates.style?.stroke || edge.data?.originalStroke || edge.style?.stroke,
+              originalStrokeWidth: updates.style?.strokeWidth || edge.data?.originalStrokeWidth || edge.style?.strokeWidth,
+            }
+          };
+          console.log('CriacaoCanvas: Edge updated:', updatedEdge); // Debug
+          return updatedEdge;
+        }
+        return edge;
+      })
+    );
+  }, [setEdges]);
+
+  // Registra as funções de atualização no App
   useEffect(() => {
     setUpdateNodeFunc(handleUpdateNode);
-  }, [handleUpdateNode, setUpdateNodeFunc]);
+    setUpdateEdgeFunc(handleUpdateEdge);
+  }, [handleUpdateNode, handleUpdateEdge, setUpdateNodeFunc, setUpdateEdgeFunc]);
 
   // Detecta seleção através do clique no nó
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     event.stopPropagation();
     console.log('Node clicked:', node); // Debug
     onNodeSelect(node);
+    onEdgeSelect(null); // Desseleciona edge
     
-    // Desseleciona todos os edges quando um nó é selecionado
+    // Desseleciona todos os edges mas volta para suas cores originais
     setEdges((eds) =>
       eds.map((edge) => ({
         ...edge,
         selected: false,
         style: {
           ...edge.style,
-          stroke: '#374151',
-          strokeWidth: 2,
+          // Volta para a cor original armazenada no data
+          stroke: edge.data?.originalStroke || edge.style?.stroke || '#374151',
+          strokeWidth: edge.data?.originalStrokeWidth || edge.style?.strokeWidth || 2,
         },
-        markerEnd: edge.markerEnd && typeof edge.markerEnd === 'object' ? {
-          ...(edge.markerEnd as any),
-          color: '#374151',
-        } : edge.markerEnd,
+        markerEnd: edge.markerEnd ? 
+          (typeof edge.markerEnd === 'object' && edge.markerEnd !== null ? {
+            ...edge.markerEnd,
+            color: edge.data?.originalStroke || edge.style?.stroke || '#374151',
+          } : edge.markerEnd)
+          : edge.markerEnd,
       }))
     );
-  }, [onNodeSelect, setEdges]);
+  }, [onNodeSelect, onEdgeSelect, setEdges]);
 
   // Captura mudanças nos nós incluindo seleção
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
@@ -191,48 +253,54 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
     event.stopPropagation();
     console.log('Edge clicked:', edge); // Debug
     
+    // Seleciona o edge clicado
+    onEdgeSelect(edge);
+    onNodeSelect(null); // Desseleciona nó
+    
     // Atualiza o estado dos edges para marcar como selecionado
     setEdges((eds) =>
       eds.map((e) => ({
         ...e,
-        selected: e.id === edge.id, // Apenas o edge clicado fica selecionado
+        selected: e.id === edge.id,
         style: {
           ...e.style,
-          stroke: e.id === edge.id ? '#3b82f6' : '#374151',
-          strokeWidth: e.id === edge.id ? 4 : 2,
+          // Para o edge selecionado, usa azul. Para os outros, volta para cor original
+          stroke: e.id === edge.id ? '#3b82f6' : (e.data?.originalStroke || e.style?.stroke || '#374151'),
+          strokeWidth: e.id === edge.id ? 4 : (e.data?.originalStrokeWidth || e.style?.strokeWidth || 2),
         },
-        markerEnd: e.markerEnd && typeof e.markerEnd === 'object' ? {
-          ...(e.markerEnd as any),
-          color: e.id === edge.id ? '#3b82f6' : '#374151',
-        } : e.markerEnd,
+        markerEnd: e.markerEnd ? 
+          (typeof e.markerEnd === 'object' ? {
+            ...e.markerEnd,
+            color: e.id === edge.id ? '#3b82f6' : (e.data?.originalStroke || e.style?.stroke || '#374151'),
+          } : e.markerEnd)
+          : e.markerEnd,
       }))
     );
-
-    // Desseleciona qualquer nó selecionado
-    onNodeSelect(null);
-  }, [setEdges, onNodeSelect]);
+  }, [setEdges, onNodeSelect, onEdgeSelect]);
 
   // Captura cliques no pano de fundo para desselecionar
   const handlePaneClick = useCallback(() => {
     onNodeSelect(null);
+    onEdgeSelect(null);
     
-    // Desseleciona todos os edges também
+    // Desseleciona todos os edges e volta para suas cores originais
     setEdges((eds) =>
       eds.map((edge) => ({
         ...edge,
         selected: false,
         style: {
           ...edge.style,
-          stroke: '#374151',
-          strokeWidth: 2,
+          // Volta para as cores originais armazenadas no data
+          stroke: edge.data?.originalStroke || edge.style?.stroke || '#374151',
+          strokeWidth: edge.data?.originalStrokeWidth || edge.style?.strokeWidth || 2,
         },
         markerEnd: edge.markerEnd && typeof edge.markerEnd === 'object' ? {
-          ...(edge.markerEnd as any),
-          color: '#374151',
+          ...edge.markerEnd,
+          color: edge.data?.originalStroke || edge.style?.stroke || '#374151',
         } : edge.markerEnd,
       }))
     );
-  }, [onNodeSelect, setEdges]);
+  }, [onNodeSelect, onEdgeSelect, setEdges]);
 
   return (
     <div className="flex-1 h-full">
@@ -311,14 +379,24 @@ const CriacaoCanvas = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: Criaca
   );
 };
 
-const Criacao = ({ selectedNode, onNodeSelect, setUpdateNodeFunc }: CriacaoCanvasProps) => {
+const Criacao = ({ 
+  selectedNode, 
+  selectedEdge, 
+  onNodeSelect, 
+  onEdgeSelect, 
+  setUpdateNodeFunc, 
+  setUpdateEdgeFunc 
+}: CriacaoCanvasProps) => {
   return (
     <div className="flex-1 h-full">
       <ReactFlowProvider>
         <CriacaoCanvas 
           selectedNode={selectedNode}
+          selectedEdge={selectedEdge}
           onNodeSelect={onNodeSelect}
+          onEdgeSelect={onEdgeSelect}
           setUpdateNodeFunc={setUpdateNodeFunc}
+          setUpdateEdgeFunc={setUpdateEdgeFunc}
         />
       </ReactFlowProvider>
     </div>
