@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { Node, Edge } from "reactflow";
+import { MarkerType } from "reactflow";
 
 interface SidebarProps {
   selectedNode: Node | null;
@@ -22,6 +23,13 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
   const [edgeColor, setEdgeColor] = useState("#374151");
   const [edgeWidth, setEdgeWidth] = useState(2);
   const [edgeStyle, setEdgeStyle] = useState("solid");
+  const [edgeOpacity, setEdgeOpacity] = useState(1);
+  const [edgeType, setEdgeType] = useState("smoothstep");
+  const [edgeAnimated, setEdgeAnimated] = useState(true);
+  const [edgeLabelColor, setEdgeLabelColor] = useState("#374151");
+  const [arrowType, setArrowType] = useState<MarkerType | "none">(MarkerType.ArrowClosed);
+  const [arrowSize, setArrowSize] = useState(20);
+  const [hasStartArrow, setHasStartArrow] = useState(false);
 
   // Atualiza os valores quando um novo nó é selecionado
   useEffect(() => {
@@ -38,10 +46,25 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
   // Atualiza os valores quando um novo edge é selecionado
   useEffect(() => {
     if (selectedEdge) {
-      setEdgeLabel(`${selectedEdge.label || ""}`);
+      setEdgeLabel(selectedEdge.label ? String(selectedEdge.label) : "");
       setEdgeColor(selectedEdge.style?.stroke || "#374151");
-      setEdgeWidth(typeof selectedEdge.style?.strokeWidth === 'number' ? selectedEdge.style.strokeWidth : parseInt(String(selectedEdge.style?.strokeWidth || 2), 10));
-      setEdgeStyle(selectedEdge.style?.strokeDasharray ? "dashed" : "solid");
+      setEdgeWidth(typeof selectedEdge.style?.strokeWidth === 'number' ? selectedEdge.style.strokeWidth : parseInt(selectedEdge.style?.strokeWidth as string) || 2);
+      setEdgeStyle(selectedEdge.style?.strokeDasharray ? 
+        (selectedEdge.style.strokeDasharray === "2,2" ? "dotted" : "dashed") : "solid");
+      setEdgeOpacity(typeof selectedEdge.style?.opacity === 'number' ? selectedEdge.style.opacity : parseFloat(selectedEdge.style?.opacity as string) || 1);
+      setEdgeType(selectedEdge.type || "smoothstep");
+      setEdgeAnimated(selectedEdge.animated !== false);
+      setEdgeLabelColor(selectedEdge.labelStyle?.fill || "#374151");
+      
+      // Corrigir o tipo de seta - verificar se existe markerEnd
+      if (selectedEdge.markerEnd && typeof selectedEdge.markerEnd === 'object' && selectedEdge.markerEnd?.type) {
+        setArrowType(selectedEdge.markerEnd.type);
+      } else {
+        setArrowType("none"); // Se não tem markerEnd, é "sem seta"
+      }
+      
+      setArrowSize(typeof selectedEdge.markerEnd === 'object' && selectedEdge.markerEnd?.width ? selectedEdge.markerEnd.width : 20);
+      setHasStartArrow(!!selectedEdge.markerStart);
     }
   }, [selectedEdge]);
 
@@ -112,10 +135,27 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
     const newColor = e.target.value;
     setEdgeColor(newColor);
     if (selectedEdge) {
-      onUpdateEdge(selectedEdge.id, { 
-        style: { stroke: newColor },
-        markerEnd: { color: newColor }
-      });
+      const updates: any = { 
+        style: { stroke: newColor }
+      };
+      
+      // Só adiciona markerEnd se não for "sem seta"
+      if (arrowType !== "none") {
+        updates.markerEnd = { 
+          type: arrowType,
+          color: newColor 
+        };
+      }
+      
+      // Se tem seta no início, atualiza também
+      if (hasStartArrow && arrowType !== "none") {
+        updates.markerStart = { 
+          type: arrowType,
+          color: newColor 
+        };
+      }
+      
+      onUpdateEdge(selectedEdge.id, updates);
     }
   };
 
@@ -133,10 +173,139 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
     const newStyle = e.target.value;
     setEdgeStyle(newStyle);
     if (selectedEdge) {
+      let strokeDasharray = "none";
+      if (newStyle === "dashed") strokeDasharray = "5,5";
+      if (newStyle === "dotted") strokeDasharray = "2,2";
+      
       onUpdateEdge(selectedEdge.id, { 
         style: { 
-          strokeDasharray: newStyle === "dashed" ? "5,5" : "none"
+          strokeDasharray: strokeDasharray === "none" ? undefined : strokeDasharray
         }
+      });
+    }
+  };
+
+  const handleEdgeOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newOpacity = parseFloat(e.target.value);
+    setEdgeOpacity(newOpacity);
+    if (selectedEdge) {
+      onUpdateEdge(selectedEdge.id, { 
+        style: { opacity: newOpacity }
+      });
+    }
+  };
+
+  const handleEdgeTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value;
+    setEdgeType(newType);
+    if (selectedEdge) {
+      onUpdateEdge(selectedEdge.id, { 
+        type: newType
+      });
+    }
+  };
+
+  const handleEdgeAnimatedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newAnimated = e.target.checked;
+    setEdgeAnimated(newAnimated);
+    if (selectedEdge) {
+      onUpdateEdge(selectedEdge.id, { 
+        animated: newAnimated
+      });
+    }
+  };
+
+  const handleEdgeLabelColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newColor = e.target.value;
+    setEdgeLabelColor(newColor);
+    if (selectedEdge) {
+      onUpdateEdge(selectedEdge.id, { 
+        labelStyle: { fill: newColor }
+      });
+    }
+  };
+
+  const handleArrowTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as MarkerType | "none";
+    setArrowType(newType);
+    if (selectedEdge) {
+      if (newType === "none") {
+        // Remove todas as setas explicitamente
+        console.log('Removing arrows - setting to null'); // Debug
+        onUpdateEdge(selectedEdge.id, { 
+          markerEnd: null,
+          markerStart: null
+        });
+        setHasStartArrow(false);
+      } else {
+        // Adiciona seta no fim
+        const updates: any = {
+          markerEnd: {
+            type: newType,
+            width: arrowSize,
+            height: arrowSize,
+            color: edgeColor
+          }
+        };
+        
+        // Se tinha seta no início, mantém
+        if (hasStartArrow) {
+          updates.markerStart = {
+            type: newType,
+            width: arrowSize,
+            height: arrowSize,
+            color: edgeColor
+          };
+        }
+        
+        onUpdateEdge(selectedEdge.id, updates);
+      }
+    }
+  };
+
+  const handleArrowSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSize = parseInt(e.target.value);
+    setArrowSize(newSize);
+    if (selectedEdge && arrowType !== "none") {
+      const updates: any = {
+        markerEnd: { 
+          type: arrowType,
+          width: newSize,
+          height: newSize,
+          color: edgeColor
+        }
+      };
+      
+      if (hasStartArrow) {
+        updates.markerStart = {
+          type: arrowType,
+          width: newSize,
+          height: newSize,
+          color: edgeColor
+        };
+      }
+      
+      onUpdateEdge(selectedEdge.id, updates);
+    }
+  };
+
+  const handleStartArrowChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const hasStart = e.target.checked;
+    setHasStartArrow(hasStart);
+    if (selectedEdge) {
+      if (arrowType === "none") {
+        // Se não tem seta no fim, não pode ter no início
+        setHasStartArrow(false);
+        return;
+      }
+      
+      onUpdateEdge(selectedEdge.id, { 
+        markerStart: hasStart ? {
+          type: arrowType,
+          width: arrowSize,
+          height: arrowSize,
+          color: edgeColor
+        } : null
       });
     }
   };
@@ -374,6 +543,27 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
               />
             </div>
 
+            {/* Cor do Texto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cor do Texto
+              </label>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="color"
+                  value={edgeLabelColor}
+                  onChange={handleEdgeLabelColorChange}
+                  className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={edgeLabelColor}
+                  onChange={handleEdgeLabelColorChange}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs font-mono"
+                />
+              </div>
+            </div>
+
             {/* Cor da Linha */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -402,10 +592,18 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
                     onClick={() => {
                       setEdgeColor(color);
                       if (selectedEdge) {
-                        onUpdateEdge(selectedEdge.id, { 
-                          style: { stroke: color },
-                          markerEnd: { color: color }
-                        });
+                        const updates: any = { 
+                          style: { stroke: color }
+                        };
+                        
+                        if (arrowType !== "none") {
+                          updates.markerEnd = { color: color };
+                          if (hasStartArrow) {
+                            updates.markerStart = { color: color };
+                          }
+                        }
+                        
+                        onUpdateEdge(selectedEdge.id, updates);
                       }
                     }}
                     className="w-6 h-6 border border-gray-300 rounded cursor-pointer hover:scale-110 transition-transform"
@@ -447,8 +645,124 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
               >
                 <option value="solid">Sólida</option>
                 <option value="dashed">Tracejada</option>
+                <option value="dotted">Pontilhada</option>
               </select>
             </div>
+
+            {/* Opacidade da Linha */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Opacidade: {Math.round(edgeOpacity * 100)}%
+              </label>
+              <input
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.1"
+                value={edgeOpacity}
+                onChange={handleEdgeOpacityChange}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>10%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            {/* Tipo de Conexão */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de Conexão
+              </label>
+              <select
+                value={edgeType}
+                onChange={handleEdgeTypeChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="smoothstep">Suave (SmoothStep)</option>
+                <option value="straight">Reta</option>
+                <option value="step">Degraus</option>
+                <option value="default">Bezier</option>
+                <option value="simplebezier">Bezier Simples</option>
+              </select>
+            </div>
+
+            {/* Animação */}
+            <div>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={edgeAnimated}
+                  onChange={handleEdgeAnimatedChange}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Animação da linha
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Adiciona movimento visual à conexão
+              </p>
+            </div>
+
+            {/* Tipo de Seta */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de Seta
+              </label>
+              <select
+                value={arrowType}
+                onChange={handleArrowTypeChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value={MarkerType.ArrowClosed}>Seta Fechada</option>
+                <option value="none">Sem Seta</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                ReactFlow suporta principalmente setas fechadas
+              </p>
+            </div>
+
+            {/* Tamanho da Seta */}
+            {arrowType !== "none" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tamanho da Seta: {arrowSize}px
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="40"
+                  value={arrowSize}
+                  onChange={handleArrowSizeChange}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>10px</span>
+                  <span>40px</span>
+                </div>
+              </div>
+            )}
+
+            {/* Seta no Início */}
+            {arrowType !== "none" && (
+              <div>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasStartArrow}
+                    onChange={handleStartArrowChange}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Seta dupla (início e fim)
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Adiciona seta no início da conexão
+                </p>
+              </div>
+            )}
 
             {/* Preview da Linha */}
             <div>
@@ -456,21 +770,99 @@ const Sidebar = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Sid
                 Preview
               </label>
               <div className="bg-white p-4 border rounded-md">
-                <svg width="100%" height="40">
+                <svg width="100%" height="60">
+                  <defs>
+                    {/* Definir marcadores para preview */}
+                    {arrowType === MarkerType.ArrowClosed && (
+                      <marker
+                        id="arrowEnd"
+                        markerWidth={arrowSize}
+                        markerHeight={arrowSize}
+                        refX={arrowSize - 2}
+                        refY={arrowSize / 2}
+                        orient="auto"
+                        markerUnits="strokeWidth"
+                      >
+                        <polygon
+                          points={`0,0 0,${arrowSize} ${arrowSize},${arrowSize / 2}`}
+                          fill={edgeColor}
+                          fillOpacity={edgeOpacity}
+                        />
+                      </marker>
+                    )}
+                    {hasStartArrow && arrowType === MarkerType.ArrowClosed && (
+                      <marker
+                        id="arrowStart"
+                        markerWidth={arrowSize}
+                        markerHeight={arrowSize}
+                        refX="2"
+                        refY={arrowSize / 2}
+                        orient="auto"
+                        markerUnits="strokeWidth"
+                      >
+                        <polygon
+                          points={`${arrowSize},0 ${arrowSize},${arrowSize} 0,${arrowSize / 2}`}
+                          fill={edgeColor}
+                          fillOpacity={edgeOpacity}
+                        />
+                      </marker>
+                    )}
+                  </defs>
+                  
                   <line
-                    x1="10"
-                    y1="20"
-                    x2="90%"
-                    y2="20"
+                    x1="15"
+                    y1="30"
+                    x2="85%"
+                    y2="30"
                     stroke={edgeColor}
                     strokeWidth={edgeWidth}
-                    strokeDasharray={edgeStyle === "dashed" ? "5,5" : "none"}
+                    strokeOpacity={edgeOpacity}
+                    strokeDasharray={
+                      edgeStyle === "dashed" ? "5,5" : 
+                      edgeStyle === "dotted" ? "2,2" : "none"
+                    }
+                    markerEnd={arrowType !== "none" ? "url(#arrowEnd)" : "none"}
+                    markerStart={hasStartArrow && arrowType !== "none" ? "url(#arrowStart)" : "none"}
                   />
-                  <polygon
-                    points="85,15 95,20 85,25"
-                    fill={edgeColor}
-                  />
+                  
+                  {edgeLabel && (
+                    <text
+                      x="50%"
+                      y="20"
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill={edgeLabelColor}
+                      fillOpacity={edgeOpacity}
+                    >
+                      {edgeLabel}
+                    </text>
+                  )}
+                  
+                  {edgeAnimated && (
+                    <circle
+                      cx="15"
+                      cy="30"
+                      r="2"
+                      fill={edgeColor}
+                      fillOpacity={edgeOpacity}
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="translate"
+                        values="0,0; 75,0; 0,0"
+                        dur="2s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  )}
                 </svg>
+                <div className="text-xs text-gray-500 mt-2 text-center">
+                  {edgeType === "smoothstep" && "Linha com curvas suaves"}
+                  {edgeType === "straight" && "Linha reta"}
+                  {edgeType === "step" && "Linha em degraus"}
+                  {edgeType === "default" && "Curva Bezier"}
+                  {edgeType === "simplebezier" && "Curva Bezier simples"}
+                </div>
               </div>
             </div>
 

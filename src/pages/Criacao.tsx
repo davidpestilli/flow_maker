@@ -89,6 +89,7 @@ const CriacaoCanvas = ({
             style: { 
               stroke: '#374151', 
               strokeWidth: 2,
+              opacity: 1,
               cursor: 'pointer' // Indica que é clicável
             },
             markerEnd: {
@@ -99,10 +100,20 @@ const CriacaoCanvas = ({
             },
             // Adiciona ID único para facilitar seleção
             id: `edge-${+new Date()}`,
-            // Armazena as cores originais como dados do edge
+            // Armazena as propriedades originais como dados do edge
             data: {
               originalStroke: '#374151',
               originalStrokeWidth: 2,
+              originalOpacity: 1,
+              originalType: 'smoothstep',
+              originalAnimated: true,
+              originalMarkerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+                color: '#374151',
+              },
+              originalLabelStyle: { fill: '#374151' },
             }
           },
           eds
@@ -173,16 +184,38 @@ const CriacaoCanvas = ({
             ...edge, 
             ...updates,
             style: edge.style ? { ...edge.style, ...updates.style } : updates.style,
-            markerEnd: updates.markerEnd ? 
-              (edge.markerEnd && typeof edge.markerEnd === 'object' && typeof updates.markerEnd === 'object' ? 
-                { ...edge.markerEnd, ...updates.markerEnd } : 
-                updates.markerEnd) 
-              : edge.markerEnd,
-            // Armazena as cores originais como dados do edge
+            // Lidar corretamente com markerEnd e markerStart nulos
+            markerEnd: updates.markerEnd === null ? undefined : 
+              (updates.markerEnd ? 
+                (edge.markerEnd && typeof edge.markerEnd === 'object' && typeof updates.markerEnd === 'object' ? 
+                  { ...edge.markerEnd, ...updates.markerEnd } : 
+                  updates.markerEnd) 
+                : edge.markerEnd),
+            markerStart: updates.markerStart === null ? undefined :
+              (updates.markerStart ? 
+                (edge.markerStart && typeof edge.markerStart === 'object' && typeof updates.markerStart === 'object' ? 
+                  { ...edge.markerStart, ...updates.markerStart } : 
+                  updates.markerStart) 
+                : edge.markerStart),
+            // Armazena as propriedades originais como dados do edge
             data: {
               ...edge.data,
               originalStroke: updates.style?.stroke || edge.data?.originalStroke || edge.style?.stroke,
               originalStrokeWidth: updates.style?.strokeWidth || edge.data?.originalStrokeWidth || edge.style?.strokeWidth,
+              originalOpacity: updates.style?.opacity || edge.data?.originalOpacity || edge.style?.opacity,
+              originalType: updates.type || edge.data?.originalType || edge.type,
+              originalAnimated: updates.animated !== undefined ? updates.animated : edge.data?.originalAnimated,
+              originalMarkerEnd: updates.markerEnd === null ? null : 
+                (updates.markerEnd ? 
+                  { ...edge.data?.originalMarkerEnd, ...updates.markerEnd } :
+                  edge.data?.originalMarkerEnd),
+              originalMarkerStart: updates.markerStart === null ? null :
+                (updates.markerStart !== undefined ? 
+                  updates.markerStart : 
+                  edge.data?.originalMarkerStart),
+              originalLabelStyle: updates.labelStyle ? 
+                { ...edge.data?.originalLabelStyle, ...updates.labelStyle } :
+                edge.data?.originalLabelStyle,
             }
           };
           console.log('CriacaoCanvas: Edge updated:', updatedEdge); // Debug
@@ -206,16 +239,19 @@ const CriacaoCanvas = ({
     onNodeSelect(node);
     onEdgeSelect(null); // Desseleciona edge
     
-    // Desseleciona todos os edges mas volta para suas cores originais
+    // Desseleciona todos os edges mas volta para suas propriedades originais
     setEdges((eds) =>
       eds.map((edge) => ({
         ...edge,
         selected: false,
+        type: edge.data?.originalType || edge.type || 'smoothstep',
+        animated: edge.data?.originalAnimated !== undefined ? edge.data.originalAnimated : edge.animated,
         style: {
           ...edge.style,
-          // Volta para a cor original armazenada no data
+          // Volta para as propriedades originais armazenadas no data
           stroke: edge.data?.originalStroke || edge.style?.stroke || '#374151',
           strokeWidth: edge.data?.originalStrokeWidth || edge.style?.strokeWidth || 2,
+          opacity: edge.data?.originalOpacity || edge.style?.opacity || 1,
         },
         markerEnd: edge.markerEnd ? 
           (typeof edge.markerEnd === 'object' && edge.markerEnd !== null ? {
@@ -223,6 +259,13 @@ const CriacaoCanvas = ({
             color: edge.data?.originalStroke || edge.style?.stroke || '#374151',
           } : edge.markerEnd)
           : edge.markerEnd,
+        markerStart: edge.markerStart ? 
+          (typeof edge.markerStart === 'object' && edge.markerStart !== null ? {
+            ...edge.markerStart,
+            color: edge.data?.originalStroke || edge.style?.stroke || '#374151',
+          } : edge.markerStart)
+          : edge.markerStart,
+        labelStyle: edge.data?.originalLabelStyle || edge.labelStyle || { fill: '#374151' },
       }))
     );
   }, [onNodeSelect, onEdgeSelect, setEdges]);
@@ -262,11 +305,15 @@ const CriacaoCanvas = ({
       eds.map((e) => ({
         ...e,
         selected: e.id === edge.id,
+        // Mantém as propriedades originais para edges não selecionados
+        type: e.id === edge.id ? e.type : (e.data?.originalType || e.type || 'smoothstep'),
+        animated: e.id === edge.id ? e.animated : (e.data?.originalAnimated !== undefined ? e.data.originalAnimated : e.animated),
         style: {
           ...e.style,
-          // Para o edge selecionado, usa azul. Para os outros, volta para cor original
+          // Para o edge selecionado, usa azul. Para os outros, volta para propriedades originais
           stroke: e.id === edge.id ? '#3b82f6' : (e.data?.originalStroke || e.style?.stroke || '#374151'),
           strokeWidth: e.id === edge.id ? 4 : (e.data?.originalStrokeWidth || e.style?.strokeWidth || 2),
+          opacity: e.id === edge.id ? e.style?.opacity : (e.data?.originalOpacity || e.style?.opacity || 1),
         },
         markerEnd: e.markerEnd ? 
           (typeof e.markerEnd === 'object' ? {
@@ -274,6 +321,15 @@ const CriacaoCanvas = ({
             color: e.id === edge.id ? '#3b82f6' : (e.data?.originalStroke || e.style?.stroke || '#374151'),
           } : e.markerEnd)
           : e.markerEnd,
+        markerStart: e.markerStart ? 
+          (typeof e.markerStart === 'object' ? {
+            ...e.markerStart,
+            color: e.id === edge.id ? '#3b82f6' : (e.data?.originalStroke || e.style?.stroke || '#374151'),
+          } : e.markerStart)
+          : e.markerStart,
+        labelStyle: e.id === edge.id ? 
+          e.labelStyle : 
+          (e.data?.originalLabelStyle || e.labelStyle || { fill: '#374151' }),
       }))
     );
   }, [setEdges, onNodeSelect, onEdgeSelect]);
@@ -283,21 +339,29 @@ const CriacaoCanvas = ({
     onNodeSelect(null);
     onEdgeSelect(null);
     
-    // Desseleciona todos os edges e volta para suas cores originais
+    // Desseleciona todos os edges e volta para suas propriedades originais
     setEdges((eds) =>
       eds.map((edge) => ({
         ...edge,
         selected: false,
+        type: edge.data?.originalType || edge.type || 'smoothstep',
+        animated: edge.data?.originalAnimated !== undefined ? edge.data.originalAnimated : edge.animated,
         style: {
           ...edge.style,
-          // Volta para as cores originais armazenadas no data
+          // Volta para as propriedades originais armazenadas no data
           stroke: edge.data?.originalStroke || edge.style?.stroke || '#374151',
           strokeWidth: edge.data?.originalStrokeWidth || edge.style?.strokeWidth || 2,
+          opacity: edge.data?.originalOpacity || edge.style?.opacity || 1,
         },
         markerEnd: edge.markerEnd && typeof edge.markerEnd === 'object' ? {
           ...edge.markerEnd,
           color: edge.data?.originalStroke || edge.style?.stroke || '#374151',
         } : edge.markerEnd,
+        markerStart: edge.markerStart && typeof edge.markerStart === 'object' ? {
+          ...edge.markerStart,
+          color: edge.data?.originalStroke || edge.style?.stroke || '#374151',
+        } : edge.markerStart,
+        labelStyle: edge.data?.originalLabelStyle || edge.labelStyle || { fill: '#374151' },
       }))
     );
   }, [onNodeSelect, onEdgeSelect, setEdges]);
